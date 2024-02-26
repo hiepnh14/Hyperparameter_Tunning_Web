@@ -6,6 +6,7 @@ import torchvision.transforms as transforms
 from torch import nn, optim
 from model import SimpleCNN
 import os
+import sqlite3
 app = Flask(__name__)
 
 # Load MNIST data
@@ -43,7 +44,7 @@ def train_model(epochs, learning_rate, batch_size, model_id):
     # Update the trainloader with the new batch size
     # Initialize the model
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
-    model = Net()
+    model = SimpleCNN()
     model.to(device)
     # Update the optimizer with the new learning rate
     criterion = nn.CrossEntropyLoss()
@@ -78,6 +79,15 @@ def train_model(epochs, learning_rate, batch_size, model_id):
             torch.save(state, os.path.join(CHECKPOINT_FOLDER, f"best_model_{model_id}.pth"))
         training_status['status'] = f'Training on {device}, Epoch {epoch + 1}/{epochs}, Accuracy: {accuracy:.2f}%'
         print(f"Epoch {epoch + 1} - Training loss: {running_loss / len(trainloader)}, Accuracy: {accuracy:.2f}%")
+     # Save the hyperparameters and best accuracy to the database
+    conn = sqlite3.connect('models.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO model_accuracies (learning_rate, batch_size, accuracy)
+        VALUES (?, ?, ?)
+    ''', (learning_rate, batch_size, max(accuracies)))
+    conn.commit()
+    conn.close()
 # In-memory storage for training status
 training_status = {'status': 'Not started'}
 
@@ -93,8 +103,8 @@ def get_accuracy():
 @app.route('/start_training', methods=['POST'])
 def start_training():
     epochs = int(request.form['epochs'])
-    learning_rate = float(request.form['learningRate'])
-    batch_size = int(request.form['batchSize'])
+    learning_rate = float(request.form['learning_rate'])
+    batch_size = int(request.form['batch_size'])
     model_id = f"lr_{learning_rate}_bs_{batch_size}_ep_{epochs}"
     thread = threading.Thread(target=train_model, args=(epochs,learning_rate, batch_size, model_id))
     thread.start()

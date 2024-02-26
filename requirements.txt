@@ -1,5 +1,7 @@
 numpy
 pandas
 torch
+torchvision
 flask
+flask-socketio
 matplotlib
