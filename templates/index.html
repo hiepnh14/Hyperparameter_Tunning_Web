@@ -1,119 +1,93 @@
 <!DOCTYPE html>
-<html>
 <head>
     <title>MNIST Training</title>
+    <link rel="stylesheet" type="text/css" href="../static/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f4f4f4;
-        }
-
-        h1 {
-            color: #333;
-        }
-
-        form {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        label {
-            display: block;
-            margin-bottom: 10px;
-        }
-
-        input[type="number"],
-        input[type="text"] {
-            width: 15%;
-            padding: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-
-        button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        #status {
-            margin-top: 20px;
-            background-color: #fff;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        canvas {
-            background-color: #fff;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            margin-top: 20px;
-        }
-    </style>
+    
 </head>
 <body>
     <h1>MNIST Model Training</h1>
-    <form id="trainingForm">
+    <form id="trainingForm" style="align-items:center">
+        <h3>Enter parameters for tuning:</h3>
         <label for="epochs">Epochs:</label>
         <input type="number" id="epochs" name="epochs" value="5">
         <label for="learning_rate">Learning Rate:</label>
         <input type="text" id="learning_rate" name="learning_rate" value="0.003">
-        <label for="batch_size">Batch Size:</label>
-        <input type="number" id="batch_size" name="batch_size" value="64">
-        <button type="submit">Start Training</button>
+        <label for="dropout_rate">Dropout Rate:</label>
+        <input type="text" id="dropout_rate" name="dropout_rate" value="0.2">
+        <br>
+        <button type="submit">Add task to queue</button>
     </form>
-    <p id="status">Training status: Not started</p>
+    <div style="width: 50%; height: 30%; align-items:center;">
+        <button onclick="refreshQueueTable()">Refresh Queue Table</button>
+        <table id="queueTable" style="margin-top: 10px; border-collapse: collapse; border: 1px solid #ddd;">
+            <tr>
+                <h3>Training queue:</h3>
+                <th style="border: 1px solid #ddd; width: 20%;">Epochs        </th>
+                <th style="border: 1px solid #ddd; width: 20%;">Learning Rate </th>
+                <th style="border: 1px solid #ddd; width: 20%;">Dropout Rate  </th>
+            </tr>
+        </table>
+    </div>
+    <p id="status", style="align-items: center;">Training status: Not started</p>
+
+    <form id="start_training", style="align-items: center;">
+        <button type="submit">Start training</button>
+    </form>
     
-    
-    <div style="width: 50%; height: 30%; margin: auto;">
+    <div style="width: 50%; height: 30%; align-items: center;">
         <button onclick="plotAccuracyChart()">Refresh Graph</button>
         
             <canvas id="accuracyChart"></canvas>
         
     </div>
-    <div style="width: 50%; height: 30%">
+    <div style="width: 50%; height: 30%; align-items: center;">
         <button onclick="refreshModelTable()">Refresh Table</button>
-        <table id="modelTable" style="margin-top: 10px;">
+        <table id="modelTable" style="margin-top: 10px; border-collapse: collapse; border: 1px solid #ddd;">
+            <h3>Training results:</h3>
             <tr>
-                <th>Epochs</th>
-                <th>Learning Rate</th>
-                <th>Batch Size</th>
-                <th>Training Time</th>
-                <th>Accuracy</th>
+                <th style="border: 1px solid #ddd; width: 20%;">Epochs        </th>
+                <th style="border: 1px solid #ddd; width: 20%;">Learning Rate </th>
+                <th style="border: 1px solid #ddd; width: 20%;">Dropout Rate  </th>
+                <th style="border: 1px solid #ddd; width: 20%;">Training Time </th>
+                <th style="border: 1px solid #ddd; width: 20%;">Accuracy      </th>
             </tr>
         </table>
     </div>
 
     <script>
-        document.getElementById('trainingForm').onsubmit = function(event) {
+        // var message = "{{ message }}";
+        //     alert(message);
+        document.getElementById('start_training').onsubmit = function(event) {
             event.preventDefault();
-            var epochs = document.getElementById('epochs').value;
-            var learningRate = document.getElementById('learning_rate').value;
-            var batchSize = document.getElementById('batch_size').value;
             fetch('/start_training', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
+                }
+            })
+            .then(response => response.json())
+            .then(data => console.log(data));
+            updateStatus();
+            refreshQueueTable();
+        }
+        document.getElementById('trainingForm').onsubmit = function(event) {
+            event.preventDefault();
+            var epochs = document.getElementById('epochs').value;
+            var learningRate = document.getElementById('learning_rate').value;
+            var dropoutRate = document.getElementById('dropout_rate').value;
+            fetch('/add_to_queue', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: `epochs=${epochs}&learning_rate=${learningRate}&batch_size=${batchSize}`
+                body: `epochs=${epochs}&learning_rate=${learningRate}&dropout_rate=${dropoutRate}`
             })
             .then(response => response.json())
             .then(data => console.log(data));
 
             updateStatus();
+            refreshQueueTable();
         };
 
         function updateStatus() {
@@ -165,6 +139,25 @@
                     });
                 });
         }
+        function refreshQueueTable() {
+            fetch('/get_queue_data')
+                .then(response => response.json())
+                .then(data => {
+                const table = document.getElementById('queueTable');
+                // Clear existing table rows, except for the header
+                while (table.rows.length > 1) {
+                    table.deleteRow(1);
+                }
+                // Add new rows for each model entry
+                data.forEach(model => {
+                    const row = table.insertRow(-1);
+                    row.insertCell(0).innerText = model.epochs;
+                    row.insertCell(1).innerText = model.learning_rate;
+                    row.insertCell(2).innerText = model.dropout_rate;
+                });
+                })
+                .catch(error => console.error('Error fetching model data:', error));
+            }
         function refreshModelTable() {
             fetch('/get_model_data')
                 .then(response => response.json())
@@ -179,14 +172,14 @@
                     const row = table.insertRow(-1);
                     row.insertCell(0).innerText = model.epochs;
                     row.insertCell(1).innerText = model.learning_rate;
-                    row.insertCell(2).innerText = model.batch_size;
+                    row.insertCell(2).innerText = model.dropout_rate;
                     row.insertCell(3).innerText = model.training_time;
                     row.insertCell(4).innerText = model.accuracy;
                 });
                 })
                 .catch(error => console.error('Error fetching model data:', error));
             }
-        // setInterval(plotAccuracyChart, 5000);  // Update chart every 5 seconds
+        setInterval(plotAccuracyChart, 20000);  // Update chart every 20 seconds
         // });
 
         setInterval(updateStatus, 5000);  // Update status every 5 seconds

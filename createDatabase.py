@@ -1,7 +1,8 @@
 import sqlite3
 
+datafile = 'models.db'
 # Connect to the SQLite database
-conn = sqlite3.connect('models.db')
+conn = sqlite3.connect(datafile)
 
 # Create a cursor object
 cursor = conn.cursor()
@@ -12,16 +13,26 @@ cursor.execute('''
         id INTEGER PRIMARY KEY,
         epochs INTEGER,
         learning_rate REAL,
-        batch_size INTEGER,
+        dropout_rate REAL,
         training_time REAL,
         accuracy REAL
     )
 ''')
-
+# Create a table to store hyperparameters and accuracies
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS model_trainings (
+        id INTEGER PRIMARY KEY,
+        epochs INTEGER,
+        learning_rate REAL,
+        dropout_rate REAL
+    )
+''')
 # Commit the changes and close the connection
-# conn.commit()
-# conn.close()
-# conn = sqlite3.connect('models.db')
+conn.commit()
+conn.close()
+
+
+# conn = sqlite3.connect(datafile)
 # cursor = conn.cursor()
 # cursor.execute('''
 #     INSERT INTO model_accuracies (epochs, learning_rate, batch_size, training_time, accuracy)
