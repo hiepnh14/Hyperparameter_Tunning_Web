@@ -6,15 +6,31 @@
     
 </head>
 <body>
-    <h1>MNIST Model Training</h1>
+    <h1>MNIST Hyperparameter Tuning </h1>
     <form id="trainingForm" style="align-items:center">
         <h3>Enter parameters for tuning:</h3>
         <label for="epochs">Epochs:</label>
-        <input type="number" id="epochs" name="epochs" value="5">
+        <input type="number" id="epochs" name="epochs" value="5" style="width: 180px;">
+        <h5>Hold Shift/Control to choose multiple values</h5>
         <label for="learning_rate">Learning Rate:</label>
-        <input type="text" id="learning_rate" name="learning_rate" value="0.003">
+        <select id="learning_rate" name="learning_rate" style="width: 180px; background-color: lightblue" multiple>
+            <option value=0.001>0.001</option>
+            <option value=0.003>0.003</option>
+            <option value=0.01>0.01</option>
+            <!-- Add more options as needed -->
+        </select>
+        <button onclick="addNewRate('learning_rate')" style="font-size: 12px; background-color: rgb(143, 134, 12); width: 60px;">Add</button>
+        <br>
         <label for="dropout_rate">Dropout Rate:</label>
-        <input type="text" id="dropout_rate" name="dropout_rate" value="0.2">
+        <select id="dropout_rate" name="dropout_rate" style="width: 180px; background-color: lightblue" multiple>
+            <option value=0.1>0.1</option>
+            <option value=0.2>0.2</option>
+            <option value=0.3>0.3</option>
+            <!-- Add more options as needed -->
+        </select>
+        <button onclick="addNewRate('dropout_rate')" style="font-size: 12px; background-color: rgb(143, 134, 12); width: 60px;">Add</button>
+
+        <script src="script.js"></script>
         <br>
         <button type="submit">Add task to queue</button>
     </form>
@@ -74,18 +90,26 @@
         document.getElementById('trainingForm').onsubmit = function(event) {
             event.preventDefault();
             var epochs = document.getElementById('epochs').value;
-            var learningRate = document.getElementById('learning_rate').value;
-            var dropoutRate = document.getElementById('dropout_rate').value;
+
+            // Get all selected learning rate options and map to their values
+            var learningRates = Array.from(document.getElementById('learning_rate').selectedOptions).map(option => option.value);
+
+            // Get all selected dropout rate options and map to their values
+            var dropoutRates = Array.from(document.getElementById('dropout_rate').selectedOptions).map(option => option.value);
+
+            // Convert arrays to comma-separated strings for the request body
+            var learningRatesString = learningRates.join(',');
+            var dropoutRatesString = dropoutRates.join(',');
+
             fetch('/add_to_queue', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: `epochs=${epochs}&learning_rate=${learningRate}&dropout_rate=${dropoutRate}`
+                body: `epochs=${epochs}&learning_rate=${learningRatesString}&dropout_rate=${dropoutRatesString}`
             })
             .then(response => response.json())
             .then(data => console.log(data));
-
             updateStatus();
             refreshQueueTable();
         };
@@ -178,6 +202,19 @@
                 });
                 })
                 .catch(error => console.error('Error fetching model data:', error));
+            }
+
+
+            function addNewRate(rate) {
+                var addedValue= prompt("Enter a new " + rate+ ":");
+                if (addedValue == null || addedValue == "") {
+                    return;
+                }   
+                var select = document.getElementById(rate);
+                var option = document.createElement("option");
+                option.value = addedValue;
+                option.text = addedValue;
+                select.appendChild(option);
             }
         setInterval(plotAccuracyChart, 20000);  // Update chart every 20 seconds
         // });

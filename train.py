@@ -1,5 +1,4 @@
 import torch
-import torchvision
 import torchvision.transforms as transforms
 from torch import nn, optim
 from model import SimpleCNN, CNN
@@ -67,7 +66,7 @@ def train_model(epochs, learning_rate, dropout_rate, model_id, training_status, 
                     'epoch': epoch,
                     'lr': learning_rate}
             torch.save(state, os.path.join(CHECKPOINT_FOLDER, f"best_model_{model_id}.pth"))
-        training_status['status'] = f'Training with learning rate = {learning_rate}, dropout_rate = {dropout_rate} at Epoch {epoch + 1}/{epochs}, Accuracy: {accuracy:.2f}%'
+        training_status['status'] = f'Trained with learning rate = {learning_rate}, dropout_rate = {dropout_rate} at Epoch {epoch + 1}/{epochs}, Accuracy: {accuracy:.2f}%'
         print(f"{model_id}: Epoch {epoch + 1} - Training loss: {running_loss / len(trainloader)}, Accuracy: {accuracy:.2f}%")
     training_time = time.time() - start_time
     # Save the hyperparameters and best accuracy to the database
@@ -96,12 +95,13 @@ def hyperparameter_tuning(datafile, training_status, device, CHECKPOINT_FOLDER):
         # Remove the task from the queue after training
         cursor.execute('DELETE FROM model_trainings WHERE epochs=? AND learning_rate=? AND dropout_rate=?', (epochs, learning_rate, dropout_rate))
         conn.commit()
-        conn.close()
-    # Check for tasks added during training
-    conn = sqlite3.connect(datafile)
-    cursor = conn.cursor()
+    # conn.close()
+    # # Check for tasks added during training
+    # conn = sqlite3.connect(datafile)
+    # cursor = conn.cursor()
     if  cursor.execute('SELECT * FROM model_trainings').fetchone():
         conn.close()
-        hyperparameter_tuning()
-    training_status['status'] = 'Training completed'
-    conn.close()
+        hyperparameter_tuning(datafile, training_status, device, CHECKPOINT_FOLDER)
+    else:
+        training_status['status'] = 'Training completed'
+        conn.close()

@@ -7,10 +7,6 @@ from train import hyperparameter_tuning, training_status
 
 app = Flask(__name__)
 
-# Load MNIST data
-# transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
-# trainset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-# trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True)
 # In-memory storage for training status
 datafile = 'models.db'
 
@@ -25,25 +21,27 @@ checkpoint_folder = "./saved_model"
 
 
 # Add task to queue function
-def add_task_to_queue(epochs, learning_rate, dropout_rate):
-
+def add_task_to_queue(epochs, learning_rates, dropout_rates):
+    messages = []
     conn = sqlite3.connect(datafile)
     cursor = conn.cursor()
-    
-    cursor.execute('SELECT * FROM model_trainings WHERE epochs=? AND learning_rate=? AND dropout_rate=?', (epochs, learning_rate, dropout_rate))
-    duplicate1 = cursor.fetchone()
-    cursor.execute('SELECT * FROM model_accuracies WHERE epochs=? AND learning_rate=? AND dropout_rate=?', (epochs, learning_rate, dropout_rate))
-    duplicate2 = cursor.fetchone()
-    if duplicate1 or duplicate2:
-        # return render_template('index.html', message='Duplicate entry')
-        return jsonify({'message': 'Duplicate entry'})
-    cursor.execute('''
-        INSERT INTO model_trainings (epochs, learning_rate, dropout_rate)
-        VALUES (?, ?, ?)
-    ''', (epochs, learning_rate, dropout_rate))
-    conn.commit()
+    for learning_rate in learning_rates:
+        for dropout_rate in dropout_rates:
+            cursor.execute('SELECT * FROM model_trainings WHERE epochs=? AND learning_rate=? AND dropout_rate=?', (epochs, learning_rate, dropout_rate))
+            duplicate1 = cursor.fetchone()
+            cursor.execute('SELECT * FROM model_accuracies WHERE epochs=? AND learning_rate=? AND dropout_rate=?', (epochs, learning_rate, dropout_rate))
+            duplicate2 = cursor.fetchone()
+            if duplicate1 or duplicate2:
+                messages.append({'message': f'Duplicate entry for learning_rate {learning_rate} and dropout_rate {dropout_rate}'})
+            else:
+                cursor.execute('''
+                    INSERT INTO model_trainings (epochs, learning_rate, dropout_rate)
+                    VALUES (?, ?, ?)
+                ''', (epochs, learning_rate, dropout_rate))
+                conn.commit()
+                messages.append({'message': f'Task added to queue for learning_rate {learning_rate} and dropout_rate {dropout_rate}'})
     conn.close()
-    return jsonify({'message': 'Task added to queue'})
+    return jsonify(messages)
 
 @app.route('/')
 def index():
@@ -51,7 +49,8 @@ def index():
 
 @app.route('/accuracy', methods=['GET'])
 def get_accuracy():
-    return jsonify(val_accuracies)
+    # print(train.val_accuracies)
+    return jsonify(train.val_accuracies)
 
 # create a route to handle the /get_model_data request and return the data from the database:
 @app.route('/get_model_data')
@@ -80,11 +79,17 @@ def get_queue_data():
 @app.route('/add_to_queue', methods=['POST'])
 def add_to_queue():
     epochs = int(request.form['epochs'])
-    learning_rate = float(request.form['learning_rate'])
-    dropout_rate = float(request.form['dropout_rate'])
-    thread = threading.Thread(target=add_task_to_queue, args=(epochs,learning_rate, dropout_rate))
-    thread.start()
+    # print(f"Epochs: {epochs}")
 
+    learning_rates = list(map(float, request.form.get('learning_rate').split(',')))
+    # print(f"Learning Rates: {learning_rates}")
+
+    dropout_rates = list(map(float, request.form.get('dropout_rate').split(',')))
+    # print(f"Dropout Rates: {dropout_rates}")
+    thread = threading.Thread(target=add_task_to_queue, args=(epochs,learning_rates, dropout_rates))
+    thread.start()
+    thread.join()
+    # add_task_to_queue.delay(epochs, learning_rates, dropout_rates)
     return jsonify({'message': 'Task added to queue'})
 
 @app.route('/start_training', methods=['POST'])
